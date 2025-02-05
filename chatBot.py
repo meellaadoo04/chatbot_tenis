@@ -123,7 +123,7 @@ st.markdown('<div class="chat-title">🎾 AI Tennis Assistant</div>', unsafe_all
 
 # Contenedor principal del chat
 with st.container():
-    chat_container = st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+    #chat_container = st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 
     # Historial del chat
     message_container = st.markdown('<div class="message-container">', unsafe_allow_html=True)
