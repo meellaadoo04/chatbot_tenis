@@ -4,6 +4,8 @@ import os
 import time
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.language.questionanswering import QuestionAnsweringClient
+from azure.ai.language.conversations import ConversationAnalysisClient
+from datetime import datetime, timedelta, date, timezone
 
 # Cargar variables de entorno
 load_dotenv()
@@ -11,10 +13,15 @@ ai_endpoint = os.getenv('AI_SERVICE_ENDPOINT')
 ai_key = os.getenv('AI_SERVICE_KEY')
 ai_project_name = os.getenv('QA_PROJECT_NAME')
 ai_deployment_name = os.getenv('QA_DEPLOYMENT_NAME')
+ls_prediction_endpoint = os.getenv('LS_CONVERSATIONS_ENDPOINT')
+ls_prediction_key = os.getenv('LS_CONVERSATIONS_KEY')
 
-# Crear cliente de Azure
-credential = AzureKeyCredential(ai_key)
-ai_client = QuestionAnsweringClient(endpoint=ai_endpoint, credential=credential)
+# Crear clientes de Azure
+qa_credential = AzureKeyCredential(ai_key)
+qa_client = QuestionAnsweringClient(endpoint=ai_endpoint, credential=qa_credential)
+
+conv_credential = AzureKeyCredential(ls_prediction_key)
+conv_client = ConversationAnalysisClient(endpoint=ls_prediction_endpoint, credential=conv_credential)
 
 # Configurar página
 st.set_page_config(page_title="AI Tennis Q&A", page_icon="🎾", layout="centered")
@@ -124,9 +131,9 @@ st.markdown(
 # Preguntas predeterminadas
 default_questions = [
     "¿Quien es Roger Federer?",
-    "¿Quién tiene más títulos de Grand Slam?",
-    "¿Cuanto suelen ganar los tenistas?",
-    "¿Qué es un ace en tenis?",
+    "Dime el ranking actual de Rafael Nadal",
+    "¿Que torneo se juega en hieva?",
+    "¿Cuantos titulos tiene Serena Williams?",
 ]
 
 # Mostrar preguntas predeterminadas como botones
@@ -186,38 +193,85 @@ with st.container():
                 if reset_button:  # Verifica si se presionó el botón de resetear
                     st.session_state.history = []  # Vaciar el historial de la conversación
 
+    
     if submit_button and user_question:
         # Agregar la pregunta al historial
         st.session_state.history.append(('user', user_question))
 
         try:
-            # Obtener respuesta de Azure
-            response = ai_client.get_answers(
+            # Obtener respuesta de Azure QnA
+            response = qa_client.get_answers(
                 question=user_question,
                 project_name=ai_project_name,
                 deployment_name=ai_deployment_name
             )
 
-            # Agregar la respuesta al historial
+            # Obtener categoría de la pregunta usando Conversation Analysis
+            conv_result = conv_client.analyze_conversation(
+                task={
+                    "kind": "Conversation",
+                    "analysisInput": {
+                        "conversationItem": {
+                            "participantId": "1",
+                            "id": "1",
+                            "modality": "text",
+                            "language": "en",
+                            "text": user_question
+                        },
+                        "isLoggingEnabled": False
+                    },
+                    "parameters": {
+                        "projectName": 'Clock',
+                        "deploymentName": 'tenis',
+                        "verbose": True
+                    }
+                }
+            )
+
+            # Obtener la intención principal y las entidades
+            top_intent = conv_result["result"]["prediction"]["topIntent"]
+            entities = conv_result["result"]["prediction"]["entities"]
+
+            # Agregar la respuesta del QnA al historial
             if response.answers:
                 for candidate in response.answers:
-                    st.session_state.history.append(('bot', candidate.answer))
+                    st.session_state.history.append(('bot', f"🤖 {candidate.answer}"))
             else:
-                st.session_state.history.append(('bot', "No encontré información sobre eso. ¿Podrías reformular la pregunta?"))
+                st.session_state.history.append(('bot', "🎾 No encontré información sobre eso. ¿Podrías reformular la pregunta?"))
+
+            # Construir el mensaje de categoría y entidades
+            category_message = f"🔍 Categoría: <strong>{top_intent}</strong>\n\n"
+
+            if entities:
+                for entity in entities:
+                    category_message += f"- **Entidad:** {entity['category']}  \n"
+                    category_message += f"-  **Texto:** {entity['text']}  \n"
+                    category_message += f" - **Posición:** {entity['offset']} - {entity['offset'] + entity['length']}  \n"
+                    category_message += f" - **Confianza:** {entity['confidenceScore']:.2f}  \n\n"
+
+                # Agregar el mensaje de categoría al historial
+                if top_intent == "Get Jugador" and entities:
+                    # Suponiendo que el nombre del jugador está en la entidad correspondiente
+                    jugador_entity = next((entity for entity in entities if entity['category'] == "nombre jugador"), None)
+                    
+                    if jugador_entity:
+                        jugador_nombre = jugador_entity['text'].replace(" ", "_")  # Reemplazar espacios por guiones bajos para la URL
+                        wiki_url = f"https://es.wikipedia.org/wiki/{jugador_nombre}"  # URL de Wikipedia
+                        # Mensaje con enlace a Wikipedia
+                        st.session_state.history.append(('bot', f" {category_message}\n\n🔗 Puedes ver más información sobre {jugador_nombre} [aquí]({wiki_url})."))
+                    else:
+                        st.session_state.history.append(('bot', f"🔍 {category_message}"))
+
 
         except Exception as e:
-            st.session_state.history.append(('bot', f"Error al procesar la pregunta: {str(e)}"))
+            st.session_state.history.append(('bot', f"🚨 Ocurrió un error: {str(e)}"))
 
-    # Mostrar el historial de preguntas y respuestas con retraso
-    for i, (role, message) in enumerate(st.session_state.history):
+    # Mostrar el historial del chat
+    for role, message in st.session_state.history:
         if role == 'user':
-            st.markdown(f'<div class="message user-message">👤 {message}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="message user-message">{message}</div>', unsafe_allow_html=True)
         else:
-            st.markdown(f'<div class="message bot-message">🤖 {message}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="message bot-message">{message}</div>', unsafe_allow_html=True)
 
-        # Agregar un pequeño retraso entre cada mensaje
-        time.sleep(0.5)
-
-    # Cerrar contenedores HTML
-    st.markdown('</div>', unsafe_allow_html=True)  # Cerrar message-container
-    st.markdown('</div>', unsafe_allow_html=True)  # Cerrar chat-container
+    # Mantener el contenedor de mensajes al final
+    message_container.markdown('</div>', unsafe_allow_html=True)
