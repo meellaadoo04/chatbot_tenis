@@ -194,6 +194,8 @@ with st.container():
                     st.session_state.history = []  # Vaciar el historial de la conversación
 
     
+   
+    
     if submit_button and user_question:
         # Agregar la pregunta al historial
         st.session_state.history.append(('user', user_question))
@@ -215,7 +217,7 @@ with st.container():
                             "participantId": "1",
                             "id": "1",
                             "modality": "text",
-                            "language": "en",
+                            "language": "en",  # Cambia a "es" si soporta español
                             "text": user_question
                         },
                         "isLoggingEnabled": False
@@ -228,40 +230,63 @@ with st.container():
                 }
             )
 
-            # Obtener la intención principal y las entidades
+            # Obtener la intención principal
             top_intent = conv_result["result"]["prediction"]["topIntent"]
             entities = conv_result["result"]["prediction"]["entities"]
 
-            # Agregar la respuesta del QnA al historial
+            # Respuesta de QnA
             if response.answers:
                 for candidate in response.answers:
+                    # Agregar respuesta del bot
                     st.session_state.history.append(('bot', f"🤖 {candidate.answer}"))
             else:
-                st.session_state.history.append(('bot', "🎾 No encontré información sobre eso. ¿Podrías reformular la pregunta?"))
+                st.session_state.history.append(('bot', "🎾 No encontré información sobre eso."))
 
-            # Construir el mensaje de categoría y entidades
-            category_message = f"🔍 Categoría: <strong>{top_intent}</strong>\n\n"
-
+            # Construir mensaje de intención y entidades
+            intent_message = f"🔍 Intención Detectada: **{top_intent}**\n\n"
+            entities_message = "**Entidades Reconocidas:**\n"
             if entities:
                 for entity in entities:
-                    category_message += f"- **Entidad:** {entity['category']}  \n"
-                    category_message += f"-  **Texto:** {entity['text']}  \n"
-                    category_message += f" - **Posición:** {entity['offset']} - {entity['offset'] + entity['length']}  \n"
-                    category_message += f" - **Confianza:** {entity['confidenceScore']:.2f}  \n\n"
+                    entities_message += f"- **Categoría:** {entity['category']}\n"
+                    entities_message += f"- **Texto:** {entity['text']}\n"
+                    entities_message += f"- **Posición:** {entity['offset']} - {entity['offset'] + entity['length']}\n"
+                    entities_message += f"- **Confianza:** {entity['confidenceScore']:.2f}\n\n"
+            else:
+                entities_message = "🚫 No se detectaron entidades en la pregunta.\n"
 
-                # Agregar el mensaje de categoría al historial
-                if top_intent == "Get Jugador" and entities:
-                    # Suponiendo que el nombre del jugador está en la entidad correspondiente
-                    jugador_entity = next((entity for entity in entities if entity['category'] == "nombre jugador"), None)
-                    
-                    if jugador_entity:
-                        jugador_nombre = jugador_entity['text'].replace(" ", "_")  # Reemplazar espacios por guiones bajos para la URL
-                        wiki_url = f"https://es.wikipedia.org/wiki/{jugador_nombre}"  # URL de Wikipedia
-                        # Mensaje con enlace a Wikipedia
-                        st.session_state.history.append(('bot', f" {category_message}\n\n🔗 Puedes ver más información sobre {jugador_nombre} [aquí]({wiki_url})."))
-                    else:
-                        st.session_state.history.append(('bot', f"🔍 {category_message}"))
+            # Formatear ambos mensajes en un solo bloque
+            combined_message = f"{intent_message}{entities_message}"
 
+            # Agregar el mensaje combinado de intención y entidades al historial
+            st.session_state.history.append(('bot', combined_message))
+
+            # Lógica específica según la intención
+            if top_intent == "Get Jugador":
+                # Suponiendo que el nombre del jugador está en la entidad correspondiente
+                jugador_entity = next((entity for entity in entities if entity['category'] == "nombre jugador"), None)
+                
+                if jugador_entity:
+                    jugador_nombre = jugador_entity['text'].replace(" ", "_")  # Reemplazar espacios por guiones bajos para la URL
+                    wiki_url = f"https://es.wikipedia.org/wiki/{jugador_nombre}"  # URL de Wikipedia
+                    # Mensaje con enlace a Wikipedia
+                    st.session_state.history.append(('bot', f"🔗 Puedes ver más información sobre {jugador_entity['text']} <a href='{wiki_url}' target='_blank'>aquí</a>."))
+                else:
+                    st.session_state.history.append(('bot', "🚫 No se encontró información sobre el jugador."))
+
+            elif top_intent == "get Torneo":
+                # Enlace a la página oficial de torneos de la ATP
+                atp_tournaments_url = "https://www.atptour.com/en/tournaments"
+                st.session_state.history.append(('bot', f"🔍 Puedes consultar información sobre los torneos oficiales de la ATP <a href='{atp_tournaments_url}' target='_blank'>aquí</a>."))
+
+            elif top_intent == "get Estadistica":
+                # Enlace a la página oficial de estadísticas de la ATP
+                atp_statistics_url = "https://www.atptour.com/en/stats"
+                st.session_state.history.append(('bot', f"🔍 Puedes consultar las estadísticas oficiales de la ATP <a href='{atp_statistics_url}' target='_blank'>aquí</a>."))
+
+            elif top_intent == "get Ranking":
+                # Enlace al ranking oficial de ATP
+                atp_ranking_url = "https://www.atptour.com/en/rankings/singles"
+                st.session_state.history.append(('bot', f"🔍 Puedes consultar el ranking de la ATP <a href='{atp_ranking_url}' target='_blank'>aquí</a>."))
 
         except Exception as e:
             st.session_state.history.append(('bot', f"🚨 Ocurrió un error: {str(e)}"))
@@ -271,7 +296,5 @@ with st.container():
         if role == 'user':
             st.markdown(f'<div class="message user-message">{message}</div>', unsafe_allow_html=True)
         else:
+            # Asegúrate de usar unsafe_allow_html=True para los mensajes del bot
             st.markdown(f'<div class="message bot-message">{message}</div>', unsafe_allow_html=True)
-
-    # Mantener el contenedor de mensajes al final
-    message_container.markdown('</div>', unsafe_allow_html=True)
