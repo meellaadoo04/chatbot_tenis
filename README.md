@@ -8,6 +8,7 @@ El bot te repondera en base a la pregunta que le hayas relizado ademas de añadi
 - Intenciones 
 - Expresiones
 - Entidades
+  
 El bot detectara automaticamente estas caracteristicas de la pregunta del usuario gracias a un entrenamiento previo realizado en Azure Languaje Studio que puedes comprobar aqui:
 https://language.cognitive.azure.com/clu/projects/Clock/build
 
