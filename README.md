@@ -5,9 +5,18 @@ He creado este chatbot entrenado con preguntas y respuestas sobre tenis sobre Az
 Sobre el le podras hacer las preguntas mas basicas como quien es Nadal a preguntas mas tecnicas como que es un ace. De todas maneras ya por defecto te aparecen algunas preguntas que puedes hacerle 
 
 El bot te repondera en base a la pregunta que le hayas relizado ademas de añadirle:
-- Intenciones 
+- Intenciones
+  1. Get Jugador
+  2. Get Torneo
+  3. Get Estadistica
+  4. Get Ranking
+     
 - Expresiones
 - Entidades
+1. Ranking
+2. Fechas
+3. Nombre jugador
+4. Nombre torneo
   
 El bot detectara automaticamente estas caracteristicas de la pregunta del usuario gracias a un entrenamiento previo realizado en Azure Languaje Studio que puedes comprobar aqui:
 https://language.cognitive.azure.com/clu/projects/Clock/build
