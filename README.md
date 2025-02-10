@@ -6,10 +6,10 @@ Sobre el le podras hacer las preguntas mas basicas como quien es Nadal a pregunt
 
 El bot te repondera en base a la pregunta que le hayas relizado ademas de añadirle:
 - Intenciones
-  1. Get Jugador
-  2. Get Torneo
-  3. Get Estadistica
-  4. Get Ranking
+1. Get Jugador
+2. Get Torneo
+3. Get Estadistica
+4. Get Ranking
      
 - Expresiones
 - Entidades
